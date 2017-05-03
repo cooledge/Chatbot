@@ -9,13 +9,18 @@ import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.ToggleButton;
-import org.tensorflow.Operation;
 import org.tensorflow.contrib.android.TensorFlowInferenceInterface;
 
 import java.util.List;
 import java.util.Locale;
 
 public class ChatActivity extends AppCompatActivity {
+
+  private TensorFlowInferenceInterface inferenceInterface;
+
+  static {
+    System.loadLibrary("tensorflow_inference");
+  }
 
   private static final int SPEECH_REQUEST_CODE = 0;
   TextToSpeech mTTS;
@@ -25,6 +30,9 @@ public class ChatActivity extends AppCompatActivity {
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
     setContentView(R.layout.activity_chat);
+
+    inferenceInterface = new TensorFlowInferenceInterface();
+    //inferenceInterface.initializeTensorFlow(getAssets(), MODEL_FILE);
 
     mTTS = new TextToSpeech(getApplicationContext(), new TextToSpeech.OnInitListener() {
       @Override
