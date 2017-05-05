@@ -5,8 +5,7 @@ import numpy as np
 import math
 from collections import Counter
 import pdb
-from tf.contrib.legacy_seq2seq import embedding_rnn_seq2seq
-
+from tensorflow.contrib.legacy_seq2seq.python.ops import seq2seq as seq2seq_lib
 
 INPUT_FILE_NAME = 'input.txt'
 OUTPUT_FILE_NAME = 'output.txt'
@@ -63,11 +62,14 @@ num_layers = 3
 nce_weights = tf.Variable(tf.truncated_normal([vocabulary_size, embedding_size], stddev=1.0 / math.sqrt(embedding_size)))
 nce_biases = tf.Variable(tf.zeros([vocabulary_size]))
 
-encoder_inputs = tf.placeholder(tf.int32, shape=[batch_size, seq_length])
-decoder_inputs = tf.placeholder(tf.int32, shape=[batch_size, seq_length])
+train_inputs = tf.placeholder(tf.int32, shape=[batch_size, seq_length])
+train_outputs = tf.placeholder(tf.int32, shape=[batch_size, seq_length])
+
+encoder_inputs = tf.split(train_inputs, seq_length, 1)
+decoder_inputs = tf.split(train_inputs, seq_length, 1)
 
 single_cell = tf.contrib.rnn.BasicLSTMCell(cell_size)
 cell = tf.contrib.rnn.MultiRNNCell([single_cell for _ in range(num_layers)])
 
-outputs, states = embedding_rnn_seq2seq(encoder_inputs, decoder_inputs, cell, vocabulary_size, vocabulary_size, embedding_size, output_projection=None, feed_previous=False)
+outputs, states = seq2seq_lib.embedding_rnn_seq2seq(encoder_inputs, decoder_inputs, cell, vocabulary_size, vocabulary_size, embedding_size, output_projection=None, feed_previous=False)
 
