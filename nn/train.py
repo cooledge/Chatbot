@@ -67,44 +67,19 @@ num_layers = 3
 size = 1024 
 dtype = tf.float32
 
-# convert to embeddings
-
-nce_weights = tf.Variable(tf.truncated_normal([vocabulary_size, embedding_size], stddev=1.0 / math.sqrt(embedding_size)))
-nce_biases = tf.Variable(tf.zeros([vocabulary_size]))
-
 train_inputs = tf.placeholder(tf.int32, shape=[batch_size, seq_length])
 train_outputs = tf.placeholder(tf.int32, shape=[batch_size, seq_length])
 
-encoder_inputs = [ tf.squeeze(i) for i in tf.split(train_inputs, seq_length, 1) ]
-decoder_inputs = [ tf.squeeze(i) for i in tf.split(train_inputs, seq_length, 1) ]
+encoder_inputs = tf.split(tf.cast(train_inputs, tf.float32), seq_length, 1)
+decoder_inputs = tf.split(tf.cast(train_inputs, tf.float32), seq_length, 1)
 
 single_cell = tf.contrib.rnn.BasicLSTMCell(cell_size)
 cell = tf.contrib.rnn.MultiRNNCell([single_cell for _ in range(num_layers)])
 
-output_projection = None
-def seq2seq_f(encoder_inputs, decoder_inputs, do_decode):
-  return tf.contrib.legacy_seq2seq.embedding_attention_seq2seq(
-      encoder_inputs,
-      decoder_inputs,
-      cell,
-      num_encoder_symbols=vocabulary_size,
-      num_decoder_symbols=vocabulary_size,
-      embedding_size=size,
-      output_projection=output_projection,
-      feed_previous=do_decode,
-      dtype=dtype)
+pdb.set_trace()
+outputs, states = seq2seq_lib.basic_rnn_seq2seq(encoder_inputs, decoder_inputs, cell)
 
-
-target_weights = tf.placeholder(dtype, shape=[None], name="target_weights")
-
-targets = [decoder_inputs[i + 1] for i in xrange(len(decoder_inputs) - 1)]
-buckets = [(3,3)]
-softmax_loss_function = None
-
-self.outputs, self.losses = tf.contrib.legacy_seq2seq.model_with_buckets(
-    encoder_inputs, decoder_inputs, targets,
-    target_weights, buckets, lambda x, y: seq2seq_f(x, y, True),
-    softmax_loss_function=softmax_loss_function)
+pdb.set_trace()
 
 '''
 outputs, states = seq2seq_lib.embedding_rnn_seq2seq(encoder_inputs, decoder_inputs, cell, vocabulary_size, vocabulary_size, embedding_size, output_projection=None, feed_previous=False)
