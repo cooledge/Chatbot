@@ -49,15 +49,15 @@ def load_utterances(file_name, utterances, end_with):
       ids.append(end_with)
       utterances.append(ids)
 
-inputs = []
-load_utterances(INPUT_FILE_NAME, inputs, GO)
+data_inputs = []
+load_utterances(INPUT_FILE_NAME, data_inputs, GO)
 print("Inputs")
-print(inputs)
+print(data_inputs)
 
-outputs = []
-load_utterances(OUTPUT_FILE_NAME, outputs, EOS)
+data_outputs = []
+load_utterances(OUTPUT_FILE_NAME, data_outputs, EOS)
 print("Outputs")
-print(outputs)
+print(data_outputs)
 
 batch_size = 5
 seq_length = 4
@@ -68,10 +68,12 @@ size = 1024
 dtype = tf.float32
 
 train_inputs = tf.placeholder(tf.int32, shape=[batch_size, seq_length])
-train_outputs = tf.placeholder(tf.int32, shape=[batch_size, seq_length])
+train_outputs = tf.placeholder(tf.int32, shape=[batch_size, seq_length+1])
 
+"abc"
 encoder_inputs = tf.split(tf.cast(train_inputs, tf.float32), seq_length, 1)
-decoder_inputs = tf.split(tf.cast(train_inputs, tf.float32), seq_length, 1)
+"<go>abc"
+decoder_inputs = tf.split(tf.cast(train_outputs, tf.float32), seq_length+1, 1)
 
 W = tf.get_variable("W", shape=(cell_size, vocabulary_size))
 b = tf.get_variable("b", shape=(vocabulary_size))
@@ -87,11 +89,12 @@ outputs = tf.reshape(outputs, [-1, cell_size])
 logits = tf.matmul(outputs, W) + b
 probs = tf.nn.softmax(outputs, -1, name='probs')
 
-pdb.set_trace()
+"abc<eos>"
 targets = [decoder_inputs[i + 1] for i in xrange(len(decoder_inputs) - 1)]
-targets = tf.concat(targets, 1)
+targets.append( tf.constant([[EOS]]*batch_size, dtype=tf.float32) )
+targets = tf.cast(tf.concat(targets, 1), tf.int32)
 
-loss = seq2seq_lib.sequence_loss_by_example([logits], [tf.reshape(target_placeholder, [-1])], [tf.ones([batch_size * seq_length])], vocabulary_size)
+loss = seq2seq_lib.sequence_loss_by_example([logits], [targets], [tf.ones([batch_size * (seq_length+1)])], vocabulary_size)
 lr = tf.Variable(0.0, trainable=False)
 tvars = tf.trainable_variables()
 
@@ -103,37 +106,31 @@ tf.clip_by_global_norm(grads, grad_clip)
 grads_and_vars = zip(grads, tvars)
 train_op = optimizer.apply_gradients(grads_and_vars)
 
-pdb.set_trace()
+i = 0
+while True:
 
-'''
-outputs, states = seq2seq_lib.embedding_rnn_seq2seq(encoder_inputs, decoder_inputs, cell, vocabulary_size, vocabulary_size, embedding_size, output_projection=None, feed_previous=False)
+  if i+batch_size > len(data_inputs):
+    break
 
-pdb.set_trace()
+  ti = np.zeros((batch_size, seq_length))
+  to = np.zeros((batch_size, seq_length+1))
+ 
+  for r in range(0, batch_size):
+    for c in range(0, seq_length):
+      if c >= len(data_inputs[r+i]):
+        ti[r][c] = PAD
+      else:
+        ti[r][c] = data_inputs[r+i][c]
 
-num_samples = 512
+  for r in range(0, batch_size):
+    to[r][0] = GO
+    for c in range(0, seq_length):
+      if c >= len(data_outputs[r+i]):
+        to[r][c+1] = PAD
+      else:
+        to[r][c+1] = data_outputs[r+i][c]
 
-w_t = tf.get_variable("proj_w", [vocabulary_size, size], dtype=dtype)
-w = tf.transpose(w_t)
-b = tf.get_variable("proj_b", [vocabulary_size], dtype=dtype)
+  i = i + batch_size
 
-# inputs: (batch_size, dim)
-# labels: (batch_size, num_true)
-def sampled_loss(labels, inputs):
-  labels = tf.reshape(labels, [-1, 1])
-  # We need to compute the sampled_softmax_loss using 32bit floats to
-  # avoid numerical instabilities.
-  local_w_t = tf.cast(w_t, tf.float32)
-  local_b = tf.cast(b, tf.float32)
-  local_inputs = tf.cast(inputs, tf.float32)
-  return tf.cast(
-      tf.nn.sampled_softmax_loss(
-          weights=local_w_t,
-          biases=local_b,
-          labels=labels,
-          inputs=local_inputs,
-          num_sampled=num_samples,
-          num_classes=vocabulary_size),
-      dtype)
 
-#outputs = tf.matmul(outputs, 
-'''
+
