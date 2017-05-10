@@ -73,11 +73,35 @@ train_outputs = tf.placeholder(tf.int32, shape=[batch_size, seq_length])
 encoder_inputs = tf.split(tf.cast(train_inputs, tf.float32), seq_length, 1)
 decoder_inputs = tf.split(tf.cast(train_inputs, tf.float32), seq_length, 1)
 
+W = tf.get_variable("W", shape=(cell_size, vocabulary_size))
+b = tf.get_variable("b", shape=(vocabulary_size))
+
 single_cell = tf.contrib.rnn.BasicLSTMCell(cell_size)
 cell = tf.contrib.rnn.MultiRNNCell([single_cell for _ in range(num_layers)])
 
-pdb.set_trace()
 outputs, states = seq2seq_lib.basic_rnn_seq2seq(encoder_inputs, decoder_inputs, cell)
+
+# <tf.Tensor 'concat_1:0' shape=(5, 384) dtype=float32>
+outputs = tf.concat(outputs, 1)
+outputs = tf.reshape(outputs, [-1, cell_size])
+logits = tf.matmul(outputs, W) + b
+probs = tf.nn.softmax(outputs, -1, name='probs')
+
+pdb.set_trace()
+targets = [decoder_inputs[i + 1] for i in xrange(len(decoder_inputs) - 1)]
+targets = tf.concat(targets, 1)
+
+loss = seq2seq_lib.sequence_loss_by_example([logits], [tf.reshape(target_placeholder, [-1])], [tf.ones([batch_size * seq_length])], vocabulary_size)
+lr = tf.Variable(0.0, trainable=False)
+tvars = tf.trainable_variables()
+
+optimizer = tf.train.AdamOptimizer(lr)
+cost_op = tf.reduce_sum(loss) / batch_size / seq_length
+grads= tf.gradients(cost_op, tvars)
+grad_clip = 5
+tf.clip_by_global_norm(grads, grad_clip)
+grads_and_vars = zip(grads, tvars)
+train_op = optimizer.apply_gradients(grads_and_vars)
 
 pdb.set_trace()
 
