@@ -8,6 +8,18 @@ import pdb
 from tensorflow.contrib.legacy_seq2seq.python.ops import seq2seq as seq2seq_lib
 from tensorflow.contrib.legacy_seq2seq import model_with_buckets
 
+# copied so I can add an arg to loop or not
+# seq2seq_lib.basic_rnn_seq2seq(encoder_inputs, decoder_inputs, cell)
+def basic_rnn_seq2seq(encoder_inputs,
+                      decoder_inputs,
+                      cell,
+                      feed_previous = False,
+                      dtype=tf.float32,
+                      scope=None):
+  with tf.variable_scope(scope or "basic_rnn_seq2seq"):
+    _, enc_state = tf.contrib.rnn.static_rnn(cell, encoder_inputs, dtype=dtype)
+    return seq2seq_lib.rnn_decoder(decoder_inputs, enc_state, cell)
+
 INPUT_FILE_NAME = 'input.txt'
 OUTPUT_FILE_NAME = 'output.txt'
  
@@ -35,7 +47,7 @@ for word in words.keys():
   assert(word_to_id[word] == id)
   id += 1
 
-vocabulary_size = len(word_to_id)
+vocabulary_size = len(id_to_word)
 
 print(word_to_id)
 print("{0} words".format(vocabulary_size))
@@ -81,7 +93,9 @@ b = tf.get_variable("b", shape=(vocabulary_size))
 single_cell = tf.contrib.rnn.BasicLSTMCell(cell_size)
 cell = tf.contrib.rnn.MultiRNNCell([single_cell for _ in range(num_layers)])
 
-outputs, states = seq2seq_lib.basic_rnn_seq2seq(encoder_inputs, decoder_inputs, cell)
+pdb.set_trace()
+#outputs, states = seq2seq_lib.basic_rnn_seq2seq(encoder_inputs, decoder_inputs, cell)
+outputs, states = basic_rnn_seq2seq(encoder_inputs, decoder_inputs, cell)
 
 # <tf.Tensor 'concat_1:0' shape=(5, 384) dtype=float32>
 outputs = tf.concat(outputs, 1)
@@ -105,6 +119,9 @@ grad_clip = 5
 tf.clip_by_global_norm(grads, grad_clip)
 grads_and_vars = zip(grads, tvars)
 train_op = optimizer.apply_gradients(grads_and_vars)
+
+session = tf.Session()
+session.run(tf.global_variables_initializer())
 
 i = 0
 while True:
@@ -130,7 +147,17 @@ while True:
       else:
         to[r][c+1] = data_outputs[r+i][c]
 
+  feed_dict = { train_inputs: ti, train_outputs: to }
+  
+  cost, train = session.run([cost_op, train_op], feed_dict)
+
+  print("Batch {0}, cost {1}".format(i/5, cost))
+
   i = i + batch_size
+
+print("Done training")  
+
+print("Testing")
 
 
 
