@@ -8,6 +8,9 @@ import pdb
 from tensorflow.contrib.legacy_seq2seq.python.ops import seq2seq as seq2seq_lib
 from tensorflow.contrib.legacy_seq2seq import model_with_buckets
 
+def feed_previous_loop(prev, i):
+  return prev
+
 # copied so I can add an arg to loop or not
 # seq2seq_lib.basic_rnn_seq2seq(encoder_inputs, decoder_inputs, cell)
 def basic_rnn_seq2seq(encoder_inputs,
@@ -18,7 +21,10 @@ def basic_rnn_seq2seq(encoder_inputs,
                       scope=None):
   with tf.variable_scope(scope or "basic_rnn_seq2seq"):
     _, enc_state = tf.contrib.rnn.static_rnn(cell, encoder_inputs, dtype=dtype)
-    return seq2seq_lib.rnn_decoder(decoder_inputs, enc_state, cell)
+    lf = None
+    if feed_previous:
+      lf = feed_previous_loop
+    return seq2seq_lib.rnn_decoder(decoder_inputs, enc_state, cell, loop_function=lf)
 
 INPUT_FILE_NAME = 'input.txt'
 OUTPUT_FILE_NAME = 'output.txt'
@@ -38,6 +44,12 @@ EOS = GO+1
 PAD = EOS+1
 UNK = PAD+1
 id_to_word = ["GO", "EOS", "PAD", "UNK"]
+
+def get_id(word):
+  if word in word_to_id.keys():
+    return word_to_id[word]
+  else:
+    return UNK
 
 id = len(id_to_word)
 for word in words.keys():
@@ -79,8 +91,8 @@ num_layers = 3
 size = 1024 
 dtype = tf.float32
 
-train_inputs = tf.placeholder(tf.int32, shape=[batch_size, seq_length])
-train_outputs = tf.placeholder(tf.int32, shape=[batch_size, seq_length+1])
+train_inputs = tf.placeholder(tf.int32, shape=[batch_size, seq_length], name="train_inputs")
+train_outputs = tf.placeholder(tf.int32, shape=[batch_size, seq_length+1], name="train_outputs")
 
 "abc"
 encoder_inputs = tf.split(tf.cast(train_inputs, tf.float32), seq_length, 1)
@@ -93,15 +105,19 @@ b = tf.get_variable("b", shape=(vocabulary_size))
 single_cell = tf.contrib.rnn.BasicLSTMCell(cell_size)
 cell = tf.contrib.rnn.MultiRNNCell([single_cell for _ in range(num_layers)])
 
-pdb.set_trace()
 #outputs, states = seq2seq_lib.basic_rnn_seq2seq(encoder_inputs, decoder_inputs, cell)
 outputs, states = basic_rnn_seq2seq(encoder_inputs, decoder_inputs, cell)
-
 # <tf.Tensor 'concat_1:0' shape=(5, 384) dtype=float32>
 outputs = tf.concat(outputs, 1)
 outputs = tf.reshape(outputs, [-1, cell_size])
 logits = tf.matmul(outputs, W) + b
-probs = tf.nn.softmax(outputs, -1, name='probs')
+
+# setup the var's for sampling
+sample_outputs, sample_states = basic_rnn_seq2seq(encoder_inputs, decoder_inputs, cell, scope="sample_scope")
+sample_outputs = tf.concat(sample_outputs, 1)
+sample_outputs = tf.reshape(sample_outputs, [-1, cell_size])
+sample_logits = tf.matmul(sample_outputs, W) + b
+sample_probs = tf.nn.softmax(sample_logits, -1, name='probs')
 
 "abc<eos>"
 targets = [decoder_inputs[i + 1] for i in xrange(len(decoder_inputs) - 1)]
@@ -159,5 +175,22 @@ print("Done training")
 
 print("Testing")
 
+while(True):
+  line = raw_input("Enter test value")
 
+  words = line.lower().split()
+  if len(words) == 0:
+    break
+
+  ti = np.zeros((batch_size, seq_length))
+  to = np.zeros((batch_size, seq_length+1))
+
+  for i in range(len(words)):
+    ti[0][i] = get_id(words[i])
+
+  pdb.set_trace()
+  feed_dict = { train_inputs: ti, train_outputs: to } 
+  probs = session.run([sample_probs], feed_dict)
+
+  print(probs)
 
