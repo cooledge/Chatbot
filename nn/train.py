@@ -83,8 +83,8 @@ load_utterances(OUTPUT_FILE_NAME, data_outputs, EOS)
 print("Outputs")
 print(data_outputs)
 
-batch_size = 2
-seq_length = 4
+batch_size = 1
+seq_length = 2
 embedding_size = 128
 cell_size = 96
 num_layers = 3
@@ -131,7 +131,7 @@ tvars = tf.trainable_variables()
 optimizer = tf.train.AdamOptimizer(lr)
 cost_op = tf.reduce_sum(loss) / batch_size / seq_length
 grads= tf.gradients(cost_op, tvars)
-grad_clip = 5
+grad_clip = 1
 tf.clip_by_global_norm(grads, grad_clip)
 grads_and_vars = zip(grads, tvars)
 train_op = optimizer.apply_gradients(grads_and_vars)
@@ -139,6 +139,8 @@ train_op = optimizer.apply_gradients(grads_and_vars)
 session = tf.Session()
 session.run(tf.global_variables_initializer())
 
+training is wrong
+reverse ordering
 epochs = 200
 for epoch in range(epochs):
   i = 0
