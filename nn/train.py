@@ -83,7 +83,7 @@ load_utterances(OUTPUT_FILE_NAME, data_outputs, EOS)
 print("Outputs")
 print(data_outputs)
 
-batch_size = 5
+batch_size = 2
 seq_length = 4
 embedding_size = 128
 cell_size = 96
@@ -139,37 +139,39 @@ train_op = optimizer.apply_gradients(grads_and_vars)
 session = tf.Session()
 session.run(tf.global_variables_initializer())
 
-i = 0
-while True:
+epochs = 200
+for epoch in range(epochs):
+  i = 0
+  while True:
 
-  if i+batch_size > len(data_inputs):
-    break
+    if i+batch_size > len(data_inputs):
+      break
 
-  ti = np.zeros((batch_size, seq_length))
-  to = np.zeros((batch_size, seq_length+1))
- 
-  for r in range(0, batch_size):
-    for c in range(0, seq_length):
-      if c >= len(data_inputs[r+i]):
-        ti[r][c] = PAD
-      else:
-        ti[r][c] = data_inputs[r+i][c]
+    ti = np.zeros((batch_size, seq_length))
+    to = np.zeros((batch_size, seq_length+1))
+   
+    for r in range(0, batch_size):
+      for c in range(0, seq_length):
+        if c >= len(data_inputs[r+i]):
+          ti[r][c] = PAD
+        else:
+          ti[r][c] = data_inputs[r+i][c]
 
-  for r in range(0, batch_size):
-    to[r][0] = GO
-    for c in range(0, seq_length):
-      if c >= len(data_outputs[r+i]):
-        to[r][c+1] = PAD
-      else:
-        to[r][c+1] = data_outputs[r+i][c]
+    for r in range(0, batch_size):
+      to[r][0] = GO
+      for c in range(0, seq_length):
+        if c >= len(data_outputs[r+i]):
+          to[r][c+1] = PAD
+        else:
+          to[r][c+1] = data_outputs[r+i][c]
 
-  feed_dict = { train_inputs: ti, train_outputs: to }
-  
-  cost, train = session.run([cost_op, train_op], feed_dict)
+    feed_dict = { train_inputs: ti, train_outputs: to }
+    
+    cost, train = session.run([cost_op, train_op], feed_dict)
 
-  print("Batch {0}, cost {1}".format(i/5, cost))
+    print("Epoch {2}, Batch {0}, cost {1}".format(i/5, cost, epoch))
 
-  i = i + batch_size
+    i = i + batch_size
 
 print("Done training")  
 
@@ -188,7 +190,6 @@ while(True):
   for i in range(len(words)):
     ti[0][i] = get_id(words[i])
 
-  pdb.set_trace()
   feed_dict = { train_inputs: ti, train_outputs: to } 
   probs = session.run([sample_probs], feed_dict)
 
