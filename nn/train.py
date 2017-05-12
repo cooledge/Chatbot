@@ -195,7 +195,12 @@ while(True):
     ti[0][i] = get_id(words[i])
 
   feed_dict = { train_inputs: ti, train_outputs: to } 
-  probs = session.run([sample_probs], feed_dict)
+  probs = session.run(sample_probs, feed_dict)
+  
+  seq = []
+  for sp in probs:
+    seq.append(id_to_word[np.argmax(sp)]) 
 
+  print(seq)
   print(probs)
 
