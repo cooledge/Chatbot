@@ -74,7 +74,7 @@ def load_utterances(file_name, utterances, end_with):
       utterances.append(ids)
 
 data_inputs = []
-load_utterances(INPUT_FILE_NAME, data_inputs, GO)
+load_utterances(INPUT_FILE_NAME, data_inputs, PAD)
 print("Inputs")
 print(data_inputs)
 
@@ -124,24 +124,32 @@ targets = [decoder_inputs[i + 1] for i in xrange(len(decoder_inputs) - 1)]
 targets.append( tf.constant([[EOS]]*batch_size, dtype=tf.float32) )
 targets = tf.cast(tf.concat(targets, 1), tf.int32)
 
-loss = seq2seq_lib.sequence_loss_by_example([logits], [targets], [tf.ones([batch_size * (seq_length+1)])], vocabulary_size)
-lr = tf.Variable(0.0, trainable=False)
+#loss = seq2seq_lib.sequence_loss_by_example([logits], [targets], [tf.ones([batch_size * (seq_length+1)])], vocabulary_size)
+loss = seq2seq_lib.sequence_loss([logits], [targets], [tf.ones([batch_size * (seq_length+1)])], vocabulary_size)
+lr = tf.Variable(0.001, trainable=False)
 tvars = tf.trainable_variables()
 
-optimizer = tf.train.AdamOptimizer(lr)
+global_step = tf.Variable(0, trainable=False)
+lr_op = tf.train.exponential_decay(0.001, global_step, 1, 0.9999)
+
+optimizer = tf.train.AdamOptimizer(lr_op)
+
 cost_op = tf.reduce_sum(loss) / batch_size / seq_length
+'''
 grads= tf.gradients(cost_op, tvars)
 grad_clip = 1
 tf.clip_by_global_norm(grads, grad_clip)
 grads_and_vars = zip(grads, tvars)
 train_op = optimizer.apply_gradients(grads_and_vars)
+'''
+train_op = optimizer.minimize(loss)
 
 session = tf.Session()
 session.run(tf.global_variables_initializer())
 
-training is wrong
-reverse ordering
-epochs = 200
+#training is wrong
+#reverse ordering
+epochs = 100
 for epoch in range(epochs):
   i = 0
   while True:
@@ -154,24 +162,18 @@ for epoch in range(epochs):
    
     for r in range(0, batch_size):
       for c in range(0, seq_length):
-        if c >= len(data_inputs[r+i]):
-          ti[r][c] = PAD
-        else:
-          ti[r][c] = data_inputs[r+i][c]
+        ti[r][c] = data_inputs[r+i][c]
 
     for r in range(0, batch_size):
       to[r][0] = GO
       for c in range(0, seq_length):
-        if c >= len(data_outputs[r+i]):
-          to[r][c+1] = PAD
-        else:
-          to[r][c+1] = data_outputs[r+i][c]
+        to[r][c+1] = data_outputs[r+i][c]
 
-    feed_dict = { train_inputs: ti, train_outputs: to }
+    feed_dict = { train_inputs: ti, train_outputs: to, global_step: epoch }
     
-    cost, train = session.run([cost_op, train_op], feed_dict)
+    cost, train, lr = session.run([cost_op, train_op, lr_op], feed_dict)
 
-    print("Epoch {2}, Batch {0}, cost {1}".format(i/5, cost, epoch))
+    print("Epoch {2}, Batch {0}, cost {1} rate{3}".format(i/5, cost, epoch, lr))
 
     i = i + batch_size
 
