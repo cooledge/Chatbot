@@ -9,7 +9,8 @@ from tensorflow.contrib.legacy_seq2seq.python.ops import seq2seq as seq2seq_lib
 from tensorflow.contrib.legacy_seq2seq import model_with_buckets
 
 def feed_previous_loop(prev, i):
-  return prev
+  pdb.set_trace()
+  return tf.arg_max(prev, 1)
 
 # copied so I can add an arg to loop or not
 # seq2seq_lib.basic_rnn_seq2seq(encoder_inputs, decoder_inputs, cell)
@@ -83,7 +84,7 @@ load_utterances(OUTPUT_FILE_NAME, data_outputs, EOS)
 print("Outputs")
 print(data_outputs)
 
-batch_size = 1
+batch_size = 2
 seq_length = 2
 embedding_size = 128
 cell_size = 96
@@ -95,9 +96,11 @@ train_inputs = tf.placeholder(tf.int32, shape=[batch_size, seq_length], name="tr
 train_outputs = tf.placeholder(tf.int32, shape=[batch_size, seq_length+1], name="train_outputs")
 
 "abc"
-encoder_inputs = tf.split(tf.cast(train_inputs, tf.float32), seq_length, 1)
+# old encoder_inputs = tf.split(tf.cast(train_inputs, tf.float32), seq_length, 1)
+encoder_inputs = [ tf.squeeze(i) for i in tf.split(tf.cast(train_inputs, tf.int32), seq_length, 1)]
 "<go>abc"
-decoder_inputs = tf.split(tf.cast(train_outputs, tf.float32), seq_length+1, 1)
+# old decoder_inputs = tf.split(tf.cast(train_outputs, tf.float32), seq_length+1, 1)
+decoder_inputs = [ tf.squeeze(i) for i in tf.split(tf.cast(train_outputs, tf.int32), seq_length+1, 1)]
 
 W = tf.get_variable("W", shape=(cell_size, vocabulary_size))
 b = tf.get_variable("b", shape=(vocabulary_size))
@@ -106,26 +109,36 @@ single_cell = tf.contrib.rnn.BasicLSTMCell(cell_size)
 cell = tf.contrib.rnn.MultiRNNCell([single_cell for _ in range(num_layers)])
 
 #outputs, states = seq2seq_lib.basic_rnn_seq2seq(encoder_inputs, decoder_inputs, cell)
-outputs, states = basic_rnn_seq2seq(encoder_inputs, decoder_inputs, cell)
+#old outputs, states = basic_rnn_seq2seq(encoder_inputs, decoder_inputs, cell)
+outputs, states = seq2seq_lib.embedding_rnn_seq2seq(encoder_inputs, decoder_inputs, cell, vocabulary_size, vocabulary_size, 128)
 # <tf.Tensor 'concat_1:0' shape=(5, 384) dtype=float32>
 outputs = tf.concat(outputs, 1)
-outputs = tf.reshape(outputs, [-1, cell_size])
-logits = tf.matmul(outputs, W) + b
+# old outputs = tf.reshape(outputs, [-1, cell_size])
+outputs = tf.reshape(outputs, [-1, 1])
+logits = outputs
+#logits = tf.matmul(outputs, W) + b
 
 # setup the var's for sampling
-sample_outputs, sample_states = basic_rnn_seq2seq(encoder_inputs, decoder_inputs, cell, scope="sample_scope")
+#old sample_outputs, sample_states = basic_rnn_seq2seq(encoder_inputs, decoder_inputs, cell, feed_previous=True, scope="sample_scope")
+sample_outputs, sample_states = seq2seq_lib.embedding_rnn_seq2seq(encoder_inputs, decoder_inputs, cell, vocabulary_size, vocabulary_size, 128, feed_previous=True, scope="sample_scope")
 sample_outputs = tf.concat(sample_outputs, 1)
-sample_outputs = tf.reshape(sample_outputs, [-1, cell_size])
-sample_logits = tf.matmul(sample_outputs, W) + b
+# old sample_outputs = tf.reshape(sample_outputs, [-1, cell_size])
+sample_outputs = tf.reshape(sample_outputs, [-1, 1])
+# old sample_logits = tf.matmul(sample_outputs, W) + b
+sample_logits = sample_outputs
 sample_probs = tf.nn.softmax(sample_logits, -1, name='probs')
 
 "abc<eos>"
 targets = [decoder_inputs[i + 1] for i in xrange(len(decoder_inputs) - 1)]
-targets.append( tf.constant([[EOS]]*batch_size, dtype=tf.float32) )
-targets = tf.cast(tf.concat(targets, 1), tf.int32)
+# old targets.append( tf.constant([[EOS]]*batch_size, dtype=tf.float32) )
+targets.append( tf.constant([EOS]*batch_size, dtype=tf.int32) )
+# old targets = tf.cast(tf.concat(targets, 1), tf.int32)
+targets = tf.cast(tf.concat(targets, 0), tf.int32)
 
 #loss = seq2seq_lib.sequence_loss_by_example([logits], [targets], [tf.ones([batch_size * (seq_length+1)])], vocabulary_size)
-loss = seq2seq_lib.sequence_loss([logits], [targets], [tf.ones([batch_size * (seq_length+1)])], vocabulary_size)
+# old loss = seq2seq_lib.sequence_loss([logits], [targets], [tf.ones([batch_size * (seq_length+1)])], vocabulary_size)
+pdb.set_trace()
+loss = seq2seq_lib.sequence_loss([logits], [targets], [tf.ones([(seq_length+1)])], vocabulary_size)
 lr = tf.Variable(0.001, trainable=False)
 tvars = tf.trainable_variables()
 
@@ -135,14 +148,15 @@ lr_op = tf.train.exponential_decay(0.001, global_step, 1, 0.9999)
 optimizer = tf.train.AdamOptimizer(lr_op)
 
 cost_op = tf.reduce_sum(loss) / batch_size / seq_length
-'''
-grads= tf.gradients(cost_op, tvars)
-grad_clip = 1
-tf.clip_by_global_norm(grads, grad_clip)
-grads_and_vars = zip(grads, tvars)
-train_op = optimizer.apply_gradients(grads_and_vars)
-'''
-train_op = optimizer.minimize(loss)
+use_clipping = False
+if use_clipping:
+  grads= tf.gradients(cost_op, tvars)
+  grad_clip = 5
+  tf.clip_by_global_norm(grads, grad_clip)
+  grads_and_vars = zip(grads, tvars)
+  train_op = optimizer.apply_gradients(grads_and_vars)
+else:
+  train_op = optimizer.minimize(loss)
 
 session = tf.Session()
 session.run(tf.global_variables_initializer())
