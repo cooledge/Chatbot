@@ -8,6 +8,11 @@ import pdb
 from tensorflow.contrib.legacy_seq2seq.python.ops import seq2seq as seq2seq_lib
 from tensorflow.contrib.legacy_seq2seq import model_with_buckets
 
+debug = False
+def dprint(v):
+  if debug:
+    print(v)
+
 def feed_previous_loop(prev, i):
   pdb.set_trace()
   return tf.arg_max(prev, 1)
@@ -138,11 +143,8 @@ if use_clipping:
 else:
   train_op = optimizer.minimize(loss)
 
-#with tf.variable_scope("embedding_rnn_seq2seq") as scope:
-#scope.reuse_variables()
 tf.get_variable_scope().reuse_variables()
 
-#sample_outputs, sample_states = seq2seq_lib.embedding_rnn_seq2seq(encoder_inputs, decoder_inputs, cell, vocabulary_size, vocabulary_size, 128, feed_previous=True, scope="sample_scope")
 sample_outputs, sample_states = seq2seq_lib.embedding_rnn_seq2seq(encoder_inputs, decoder_inputs, cell, vocabulary_size, vocabulary_size, 128, feed_previous=True)
 sample_outputs = [char[0] for char in sample_outputs]
 sample_outputs = [tf.nn.softmax(char) for char in sample_outputs]
@@ -153,7 +155,7 @@ session.run(tf.global_variables_initializer())
 
 #training is wrong
 #reverse ordering
-epochs = 10000
+epochs = 1000
 stop = False
 for epoch in range(epochs):
   if stop:
@@ -181,21 +183,23 @@ for epoch in range(epochs):
     
     cost, o_probs, train, lr, o_encoder_inputs, o_decoder_inputs, o_logits, o_targets, o_loss = session.run([cost_op, probs, train_op, lr_op, encoder_inputs, decoder_inputs, logits, targets, loss], feed_dict)
 
-    print("Epoch {2}, Batch {0}, cost {1} rate{3}".format(i/5, cost, epoch, lr))
-    print("o_logits:{0}".format(o_logits))
-    print("o_targets:{0}".format(o_targets))
-    print("o_probs:{0}".format(o_probs))
-    print("o_loss:{0}".format(o_loss))
-    print("o_encoder_inputs:{0}".format(o_encoder_inputs))
-    print("o_decoder_inputs:{0}".format(o_decoder_inputs))
+    print("Epoch {2}, Batch {0}, cost {1}, rate{3}".format(i/5, cost, epoch, lr))
+    dprint("o_logits:{0}".format(o_logits))
+    dprint("o_targets:{0}".format(o_targets))
+    dprint("o_probs:{0}".format(o_probs))
+    dprint("o_loss:{0}".format(o_loss))
+    dprint("o_encoder_inputs:{0}".format(o_encoder_inputs))
+    dprint("o_decoder_inputs:{0}".format(o_decoder_inputs))
 
+    '''
     cost_after = session.run(cost_op, feed_dict)
     if cost_after < cost:
-      print("COST OKAY")
+      dprint("COST OKAY")
     else:
-      print("COST HIGHER")
+      dprint("COST HIGHER")
       stop = True
       break
+    '''
 
     i = i + batch_size
 
