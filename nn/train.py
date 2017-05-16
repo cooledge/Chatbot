@@ -134,7 +134,7 @@ lr_op = tf.train.exponential_decay(0.001, global_step, 1, 0.9999)
 optimizer = tf.train.AdamOptimizer(lr_op)
 
 cost_op = tf.reduce_sum(loss) / batch_size / seq_length
-use_clipping = True
+use_clipping = False
 if use_clipping:
   grads= tf.gradients(cost_op, tvars)
   grad_clip = 5
@@ -171,12 +171,17 @@ for epoch in range(epochs):
 
     feed_dict = { train_inputs: ti, train_outputs: to, global_step: epoch }
     
-    cost, train, lr = session.run([cost_op, train_op, lr_op], feed_dict)
+    cost, train, lr, o_encoder_inputs, o_decoder_inputs, o_logits, o_targets = session.run([cost_op, train_op, lr_op, encoder_inputs, decoder_inputs, logits, targets], feed_dict)
 
     print("Epoch {2}, Batch {0}, cost {1} rate{3}".format(i/5, cost, epoch, lr))
+    print("o_logits:{0}".format(o_logits))
+    print("o_targets:{0}".format(o_targets))
+    print("o_encoder_inputs:{0}".format(o_encoder_inputs))
+    print("o_decoder_inputs:{0}".format(o_decoder_inputs))
 
     i = i + batch_size
 
+print(id_to_word)
 print("Done training")  
 
 print("Testing")
@@ -195,7 +200,10 @@ while(True):
     ti[0][i] = get_id(words[i])
 
   feed_dict = { train_inputs: ti, train_outputs: to } 
-  indexes = session.run(sample_outputs, feed_dict)
+  indexes, o_targets, o_decoder_inputs = session.run([sample_outputs, targets, decoder_inputs], feed_dict)
+
+  print("o_decoder_inputs:{0}".format(o_decoder_inputs))
+  print("o_targets:{0}".format(o_targets))
 
   print(indexes) 
   seq = []
