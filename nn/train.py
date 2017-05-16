@@ -108,12 +108,9 @@ cell = tf.contrib.rnn.MultiRNNCell([single_cell for _ in range(num_layers)])
 # outputs [(2,6)]*3
 outputs, states = seq2seq_lib.embedding_rnn_seq2seq(encoder_inputs, decoder_inputs, cell, vocabulary_size, vocabulary_size, 128)
 logits = outputs
-
-# setup the var's for sampling
-sample_outputs, sample_states = seq2seq_lib.embedding_rnn_seq2seq(encoder_inputs, decoder_inputs, cell, vocabulary_size, vocabulary_size, 128, feed_previous=True, scope="sample_scope")
-sample_outputs = [char[0] for char in sample_outputs]
-sample_outputs = [tf.nn.softmax(char) for char in sample_outputs]
-sample_outputs = [tf.argmax(char, 0) for char in sample_outputs]
+probs = [char[0] for char in outputs]
+probs = [tf.nn.softmax(char) for char in probs]
+probs = [tf.argmax(char, 0) for char in probs]
 
 "abc<eos>"
 # targets [2]*2
@@ -140,6 +137,16 @@ if use_clipping:
   train_op = optimizer.apply_gradients(grads_and_vars)
 else:
   train_op = optimizer.minimize(loss)
+
+#with tf.variable_scope("embedding_rnn_seq2seq") as scope:
+#scope.reuse_variables()
+tf.get_variable_scope().reuse_variables()
+
+#sample_outputs, sample_states = seq2seq_lib.embedding_rnn_seq2seq(encoder_inputs, decoder_inputs, cell, vocabulary_size, vocabulary_size, 128, feed_previous=True, scope="sample_scope")
+sample_outputs, sample_states = seq2seq_lib.embedding_rnn_seq2seq(encoder_inputs, decoder_inputs, cell, vocabulary_size, vocabulary_size, 128, feed_previous=True)
+sample_outputs = [char[0] for char in sample_outputs]
+sample_outputs = [tf.nn.softmax(char) for char in sample_outputs]
+sample_outputs = [tf.argmax(char, 0) for char in sample_outputs]
 
 session = tf.Session()
 session.run(tf.global_variables_initializer())
@@ -172,11 +179,13 @@ for epoch in range(epochs):
 
     feed_dict = { train_inputs: ti, train_outputs: to, global_step: epoch }
     
-    cost, train, lr, o_encoder_inputs, o_decoder_inputs, o_logits, o_targets = session.run([cost_op, train_op, lr_op, encoder_inputs, decoder_inputs, logits, targets], feed_dict)
+    cost, o_probs, train, lr, o_encoder_inputs, o_decoder_inputs, o_logits, o_targets, o_loss = session.run([cost_op, probs, train_op, lr_op, encoder_inputs, decoder_inputs, logits, targets, loss], feed_dict)
 
     print("Epoch {2}, Batch {0}, cost {1} rate{3}".format(i/5, cost, epoch, lr))
     print("o_logits:{0}".format(o_logits))
     print("o_targets:{0}".format(o_targets))
+    print("o_probs:{0}".format(o_probs))
+    print("o_loss:{0}".format(o_loss))
     print("o_encoder_inputs:{0}".format(o_encoder_inputs))
     print("o_decoder_inputs:{0}".format(o_decoder_inputs))
 
