@@ -102,9 +102,6 @@ encoder_inputs = [ tf.squeeze(i) for i in tf.split(tf.cast(train_inputs, tf.int3
 # old decoder_inputs = tf.split(tf.cast(train_outputs, tf.float32), seq_length+1, 1)
 decoder_inputs = [ tf.squeeze(i) for i in tf.split(tf.cast(train_outputs, tf.int32), seq_length+1, 1)]
 
-W = tf.get_variable("W", shape=(cell_size, vocabulary_size))
-b = tf.get_variable("b", shape=(vocabulary_size))
-
 single_cell = tf.contrib.rnn.BasicLSTMCell(cell_size)
 cell = tf.contrib.rnn.MultiRNNCell([single_cell for _ in range(num_layers)])
 
@@ -149,8 +146,12 @@ session.run(tf.global_variables_initializer())
 
 #training is wrong
 #reverse ordering
-epochs = 100
+epochs = 10000
+stop = False
 for epoch in range(epochs):
+  if stop:
+    break
+
   i = 0
   while True:
 
@@ -178,6 +179,14 @@ for epoch in range(epochs):
     print("o_targets:{0}".format(o_targets))
     print("o_encoder_inputs:{0}".format(o_encoder_inputs))
     print("o_decoder_inputs:{0}".format(o_decoder_inputs))
+
+    cost_after = session.run(cost_op, feed_dict)
+    if cost_after < cost:
+      print("COST OKAY")
+    else:
+      print("COST HIGHER")
+      stop = True
+      break
 
     i = i + batch_size
 
