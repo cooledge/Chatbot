@@ -5,6 +5,7 @@ import numpy as np
 import pickle
 import math
 import os
+import sys
 from collections import Counter
 import pdb
 from tensorflow.contrib.legacy_seq2seq.python.ops import seq2seq as seq2seq_lib
@@ -198,63 +199,68 @@ if os.path.exists(pickle_file):
     start = props[ "epoch" ] + 1
   saver.restore(session, save_dir)
 
-for epoch in range(start, epochs):
-  if stop:
-    break
+train = True
+if len(sys.argv) > 1 and sys.argv[1] == 'sample':
+  train = False
 
-  i = 0
-  while True:
-
-    if i+batch_size > len(data_inputs):
+if train: 
+  for epoch in range(start, epochs):
+    if stop:
       break
 
-    ti = np.zeros((batch_size, seq_length))
-    to = np.zeros((batch_size, seq_length+1))
-   
-    for r in range(0, batch_size):
-      for c in range(0, seq_length):
-        ti[r][c] = get_encoder_value(data_inputs[r+i], c)
-        #ti[r][c] = data_inputs[r+i][c]
+    i = 0
+    while True:
 
-    for r in range(0, batch_size):
-      to[r][0] = GO
-      for c in range(0, seq_length):
-        to[r][c+1] = get_decoder_value(data_outputs[r+i], c)
-        #to[r][c+1] = data_outputs[r+i][c]
+      if i+batch_size > len(data_inputs):
+        break
+
+      ti = np.zeros((batch_size, seq_length))
+      to = np.zeros((batch_size, seq_length+1))
+     
+      for r in range(0, batch_size):
+        for c in range(0, seq_length):
+          ti[r][c] = get_encoder_value(data_inputs[r+i], c)
+          #ti[r][c] = data_inputs[r+i][c]
+
+      for r in range(0, batch_size):
+        to[r][0] = GO
+        for c in range(0, seq_length):
+          to[r][c+1] = get_decoder_value(data_outputs[r+i], c)
+          #to[r][c+1] = data_outputs[r+i][c]
+        
+
+      feed_dict = { train_inputs: ti, train_outputs: to, global_step: epoch }
       
+      cost, o_probs, train, lr, o_encoder_inputs, o_decoder_inputs, o_logits, o_targets, o_loss = session.run([cost_op, probs, train_op, lr_op, encoder_inputs, decoder_inputs, logits, targets, loss], feed_dict)
 
-    feed_dict = { train_inputs: ti, train_outputs: to, global_step: epoch }
-    
-    cost, o_probs, train, lr, o_encoder_inputs, o_decoder_inputs, o_logits, o_targets, o_loss = session.run([cost_op, probs, train_op, lr_op, encoder_inputs, decoder_inputs, logits, targets, loss], feed_dict)
+      print("Epoch {2}, Batch {0}, cost {1}, rate{3}".format(i/5, cost, epoch, lr))
+      dprint("o_logits:{0}".format(o_logits))
+      dprint("o_targets:{0}".format(o_targets))
+      dprint("o_probs:{0}".format(o_probs))
+      dprint("o_loss:{0}".format(o_loss))
+      dprint("o_encoder_inputs:{0}".format(o_encoder_inputs))
+      dprint("o_decoder_inputs:{0}".format(o_decoder_inputs))
 
-    print("Epoch {2}, Batch {0}, cost {1}, rate{3}".format(i/5, cost, epoch, lr))
-    dprint("o_logits:{0}".format(o_logits))
-    dprint("o_targets:{0}".format(o_targets))
-    dprint("o_probs:{0}".format(o_probs))
-    dprint("o_loss:{0}".format(o_loss))
-    dprint("o_encoder_inputs:{0}".format(o_encoder_inputs))
-    dprint("o_decoder_inputs:{0}".format(o_decoder_inputs))
+      '''
+      cost_after = session.run(cost_op, feed_dict)
+      if cost_after < cost:
+        dprint("COST OKAY")
+      else:
+        dprint("COST HIGHER")
+        stop = True
+        break
+      '''
 
-    '''
-    cost_after = session.run(cost_op, feed_dict)
-    if cost_after < cost:
-      dprint("COST OKAY")
-    else:
-      dprint("COST HIGHER")
-      stop = True
-      break
-    '''
+      i = i + batch_size
 
-    i = i + batch_size
+    save_path = saver.save(session, save_dir)
 
-  save_path = saver.save(session, save_dir)
-
-  with open(pickle_file, 'wb') as output:
-    epoch = pickle.dump({ "epoch" : epoch }, output)
-  print("Saved to {0}".format(save_path))
+    with open(pickle_file, 'wb') as output:
+      epoch = pickle.dump({ "epoch" : epoch }, output)
+    print("Saved to {0}".format(save_path))
 
 
-print(id_to_word)
+#print(id_to_word)
 print("Done training")  
 
 print("Testing")
@@ -269,14 +275,17 @@ while(True):
   ti = np.zeros((batch_size, seq_length))
   to = np.zeros((batch_size, seq_length+1))
 
+  for i in range(seq_length):
+    ti[0][i] = PAD
   for i in range(len(words)):
     ti[0][i] = get_id(words[i])
 
   feed_dict = { train_inputs: ti, train_outputs: to } 
-  indexes, o_targets, o_decoder_inputs = session.run([sample_outputs, targets, decoder_inputs], feed_dict)
+  #indexes, o_targets, o_decoder_inputs = session.run([sample_outputs, targets, decoder_inputs], feed_dict)
+  indexes = session.run(sample_outputs, feed_dict)
 
-  print("o_decoder_inputs:{0}".format(o_decoder_inputs))
-  print("o_targets:{0}".format(o_targets))
+  #print("o_decoder_inputs:{0}".format(o_decoder_inputs))
+  #print("o_targets:{0}".format(o_targets))
 
   print(indexes) 
   seq = []
