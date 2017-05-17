@@ -34,11 +34,11 @@ def basic_rnn_seq2seq(encoder_inputs,
       lf = feed_previous_loop
     return seq2seq_lib.rnn_decoder(decoder_inputs, enc_state, cell, loop_function=lf)
 
-INPUT_FILE_NAME = 'input.txt'
-OUTPUT_FILE_NAME = 'output.txt'
+#INPUT_FILE_NAME = 'input.txt'
+#OUTPUT_FILE_NAME = 'output.txt'
 
-#INPUT_FILE_NAME = 'test.enc'
-#OUTPUT_FILE_NAME = 'test.dec'
+INPUT_FILE_NAME = 'test.enc'
+OUTPUT_FILE_NAME = 'test.dec'
  
 words = Counter()
 def load_words(file_name):
@@ -106,7 +106,7 @@ for di in data_outputs:
 
 print("Max length is {0}".format(max))
 
-batch_size = 2
+batch_size = 10
 seq_length = 10
 embedding_size = 128
 cell_size = 96
