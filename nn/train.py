@@ -70,7 +70,7 @@ for word in words.keys():
 
 vocabulary_size = len(id_to_word)
 
-print(word_to_id)
+#print(word_to_id)
 print("{0} words".format(vocabulary_size))
 
 # make the input/output values
@@ -81,16 +81,28 @@ def load_utterances(file_name, utterances, end_with):
       ids = [word_to_id[word] for word in line.lower().split()]
       ids.append(end_with)
       utterances.append(ids)
+    return max
 
 data_inputs = []
 load_utterances(INPUT_FILE_NAME, data_inputs, PAD)
-print("Inputs")
-print(data_inputs)
+#print("Inputs max_input({0})".format(max_input))
+#print(data_inputs)
 
 data_outputs = []
 load_utterances(OUTPUT_FILE_NAME, data_outputs, EOS)
-print("Outputs")
-print(data_outputs)
+#print("Inputs max_output({0})".format(max_output))
+#print("Outputs")
+#print(data_outputs)
+
+max = 0
+for di in data_inputs:
+  if len(di) > max:
+    max = len(di)
+for di in data_outputs:
+  if len(di) > max:
+    max = len(di)
+
+print("Max length is {0}".format(max))
 
 batch_size = 2
 seq_length = 10
@@ -160,6 +172,19 @@ session.run(tf.global_variables_initializer())
 #reverse ordering
 epochs = 1000
 stop = False
+
+def get_decoder_value(value, pos):
+  if pos < len(value):
+    return value[pos]
+  if pos == len(value):
+    return EOS
+  return PAD
+
+def get_encoder_value(value, pos):
+  if pos < len(value):
+    return value[pos]
+  return PAD
+
 for epoch in range(epochs):
   if stop:
     break
@@ -175,12 +200,15 @@ for epoch in range(epochs):
    
     for r in range(0, batch_size):
       for c in range(0, seq_length):
-        ti[r][c] = data_inputs[r+i][c]
+        ti[r][c] = get_encoder_value(data_inputs[r+i], c)
+        #ti[r][c] = data_inputs[r+i][c]
 
     for r in range(0, batch_size):
       to[r][0] = GO
       for c in range(0, seq_length):
-        to[r][c+1] = data_outputs[r+i][c]
+        to[r][c+1] = get_decoder_value(data_outputs[r+i], c)
+        #to[r][c+1] = data_outputs[r+i][c]
+      
 
     feed_dict = { train_inputs: ti, train_outputs: to, global_step: epoch }
     
