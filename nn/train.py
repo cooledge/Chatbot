@@ -2,7 +2,9 @@
 
 import tensorflow as tf
 import numpy as np
+import pickle
 import math
+import os
 from collections import Counter
 import pdb
 from tensorflow.contrib.legacy_seq2seq.python.ops import seq2seq as seq2seq_lib
@@ -32,11 +34,11 @@ def basic_rnn_seq2seq(encoder_inputs,
       lf = feed_previous_loop
     return seq2seq_lib.rnn_decoder(decoder_inputs, enc_state, cell, loop_function=lf)
 
-#INPUT_FILE_NAME = 'input.txt'
-#OUTPUT_FILE_NAME = 'output.txt'
+INPUT_FILE_NAME = 'input.txt'
+OUTPUT_FILE_NAME = 'output.txt'
 
-INPUT_FILE_NAME = 'test.enc'
-OUTPUT_FILE_NAME = 'test.dec'
+#INPUT_FILE_NAME = 'test.enc'
+#OUTPUT_FILE_NAME = 'test.dec'
  
 words = Counter()
 def load_words(file_name):
@@ -170,7 +172,7 @@ session.run(tf.global_variables_initializer())
 
 #training is wrong
 #reverse ordering
-epochs = 1000
+epochs = 100
 stop = False
 
 def get_decoder_value(value, pos):
@@ -185,7 +187,18 @@ def get_encoder_value(value, pos):
     return value[pos]
   return PAD
 
-for epoch in range(epochs):
+saver = tf.train.Saver()
+save_dir = "./saves/train.ckpt"
+pickle_file = "./saves/pickle_file"
+
+start = 0
+if os.path.exists(pickle_file):
+  with open(pickle_file, 'rb') as input:
+    props = pickle.load(input)
+    start = props[ "epoch" ] + 1
+  saver.restore(session, save_dir)
+
+for epoch in range(start, epochs):
   if stop:
     break
 
@@ -233,6 +246,13 @@ for epoch in range(epochs):
     '''
 
     i = i + batch_size
+
+  save_path = saver.save(session, save_dir)
+
+  with open(pickle_file, 'wb') as output:
+    epoch = pickle.dump({ "epoch" : epoch }, output)
+  print("Saved to {0}".format(save_path))
+
 
 print(id_to_word)
 print("Done training")  
