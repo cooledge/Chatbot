@@ -8,8 +8,17 @@ import os
 import sys
 from collections import Counter
 import pdb
+import argparse
 from tensorflow.contrib.legacy_seq2seq.python.ops import seq2seq as seq2seq_lib
 from tensorflow.contrib.legacy_seq2seq import model_with_buckets
+
+pdb.set_trace()
+parser = argparse.ArgumentParser(description="Train and sample dialogs")
+#parser.add_argument('--foo', action='store_const', const=42)
+parser.add_argument('--sample', action='store_true', default=False, help='Sample the current saved model')
+parser.add_argument('--train', action='store_true', default=False, help='Do not run the training')
+parser.add_argument('--save_words', action='store_true', default=False, help='Save the words file')
+args = parser.parse_args()
 
 debug = False
 def dprint(v):
@@ -190,6 +199,7 @@ def get_encoder_value(value, pos):
 
 saver = tf.train.Saver()
 save_dir = "./saves/train.ckpt"
+words_file = "./saves/words.txt"
 pickle_file = "./saves/pickle_file"
 
 start = 0
@@ -199,11 +209,8 @@ if os.path.exists(pickle_file):
     start = props[ "epoch" ] + 1
   saver.restore(session, save_dir)
 
-train = True
-if len(sys.argv) > 1 and sys.argv[1] == 'sample':
-  train = False
 
-if train: 
+if args.train: 
   for epoch in range(start, epochs):
     if stop:
       break
@@ -259,36 +266,40 @@ if train:
       epoch = pickle.dump({ "epoch" : epoch }, output)
     print("Saved to {0}".format(save_path))
 
+  #print(id_to_word)
+  print("Done training")  
 
-#print(id_to_word)
-print("Done training")  
+if args.save_words:
+  with open(words_file, 'wb') as output:
+    for word in id_to_word:
+      output.write("{0}\n".format(word))
+  
+if args.sample:
+  print("Testing")
+  while(True):
+    line = raw_input("Enter test value")
 
-print("Testing")
+    words = line.lower().split()
+    if len(words) == 0:
+      break
 
-while(True):
-  line = raw_input("Enter test value")
+    ti = np.zeros((batch_size, seq_length))
+    to = np.zeros((batch_size, seq_length+1))
 
-  words = line.lower().split()
-  if len(words) == 0:
-    break
+    for i in range(seq_length):
+      ti[0][i] = PAD
+    for i in range(len(words)):
+      ti[0][i] = get_id(words[i])
 
-  ti = np.zeros((batch_size, seq_length))
-  to = np.zeros((batch_size, seq_length+1))
+    feed_dict = { train_inputs: ti, train_outputs: to } 
+    #indexes, o_targets, o_decoder_inputs = session.run([sample_outputs, targets, decoder_inputs], feed_dict)
+    indexes = session.run(sample_outputs, feed_dict)
 
-  for i in range(seq_length):
-    ti[0][i] = PAD
-  for i in range(len(words)):
-    ti[0][i] = get_id(words[i])
+    #print("o_decoder_inputs:{0}".format(o_decoder_inputs))
+    #print("o_targets:{0}".format(o_targets))
 
-  feed_dict = { train_inputs: ti, train_outputs: to } 
-  #indexes, o_targets, o_decoder_inputs = session.run([sample_outputs, targets, decoder_inputs], feed_dict)
-  indexes = session.run(sample_outputs, feed_dict)
-
-  #print("o_decoder_inputs:{0}".format(o_decoder_inputs))
-  #print("o_targets:{0}".format(o_targets))
-
-  print(indexes) 
-  seq = []
-  for idx in indexes:
-    seq.append(id_to_word[idx]) 
-  print(seq)
+    print(indexes) 
+    seq = []
+    for idx in indexes:
+      seq.append(id_to_word[idx]) 
+    print(seq)
