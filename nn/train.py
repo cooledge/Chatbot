@@ -9,12 +9,11 @@ import sys
 from collections import Counter
 import pdb
 import argparse
+import re
 from tensorflow.contrib.legacy_seq2seq.python.ops import seq2seq as seq2seq_lib
 from tensorflow.contrib.legacy_seq2seq import model_with_buckets
 
-pdb.set_trace()
 parser = argparse.ArgumentParser(description="Train and sample dialogs")
-#parser.add_argument('--foo', action='store_const', const=42)
 parser.add_argument('--sample', action='store_true', default=False, help='Sample the current saved model')
 parser.add_argument('--train', action='store_true', default=False, help='Do not run the training')
 parser.add_argument('--save_words', action='store_true', default=False, help='Save the words file')
@@ -24,10 +23,6 @@ debug = False
 def dprint(v):
   if debug:
     print(v)
-
-def feed_previous_loop(prev, i):
-  pdb.set_trace()
-  return tf.arg_max(prev, 1)
 
 # copied so I can add an arg to loop or not
 # seq2seq_lib.basic_rnn_seq2seq(encoder_inputs, decoder_inputs, cell)
@@ -49,11 +44,16 @@ def basic_rnn_seq2seq(encoder_inputs,
 
 INPUT_FILE_NAME = 'test.enc'
 OUTPUT_FILE_NAME = 'test.dec'
- 
+
+# remove non-alpha from input to help with density
+def clean_line(line):
+  return re.sub(r"[^A-Za-z ]+", '', line)
+
 words = Counter()
 def load_words(file_name):
   with open(file_name, 'r') as f:
     for line in f:
+      line = clean_line(line)
       words.update(line.lower().split())
 
 load_words(INPUT_FILE_NAME)
@@ -90,6 +90,7 @@ print("{0} words".format(vocabulary_size))
 def load_utterances(file_name, utterances, end_with):
   with open(file_name, 'r') as f:
     for line in f:
+      line = clean_line(line)
       ids = [word_to_id[word] for word in line.lower().split()]
       ids.append(end_with)
       utterances.append(ids)
