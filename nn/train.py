@@ -15,7 +15,7 @@ from tensorflow.contrib.legacy_seq2seq import model_with_buckets
 
 parser = argparse.ArgumentParser(description="Train and sample dialogs")
 parser.add_argument('--sample', action='store_true', default=False, help='Sample the current saved model')
-parser.add_argument('--train', action='store_true', default=False, help='Do not run the training')
+parser.add_argument('--epochs', type=int, default=0, help='Run the training with specified number of epochs. The default is zero')
 parser.add_argument('--save_words', action='store_true', default=False, help='Save the words file')
 args = parser.parse_args()
 
@@ -183,7 +183,7 @@ session.run(tf.global_variables_initializer())
 
 #training is wrong
 #reverse ordering
-epochs = 100
+epochs = args.epochs
 stop = False
 
 def get_decoder_value(value, pos):
@@ -211,61 +211,59 @@ if os.path.exists(pickle_file):
   saver.restore(session, save_dir)
 
 
-if args.train: 
-  for epoch in range(start, epochs):
-    if stop:
+for epoch in range(0, epochs):
+  if stop:
+    break
+
+  i = 0
+  while True:
+
+    if i+batch_size > len(data_inputs):
       break
 
-    i = 0
-    while True:
+    ti = np.zeros((batch_size, seq_length))
+    to = np.zeros((batch_size, seq_length+1))
+   
+    for r in range(0, batch_size):
+      for c in range(0, seq_length):
+        ti[r][c] = get_encoder_value(data_inputs[r+i], c)
+        #ti[r][c] = data_inputs[r+i][c]
 
-      if i+batch_size > len(data_inputs):
-        break
-
-      ti = np.zeros((batch_size, seq_length))
-      to = np.zeros((batch_size, seq_length+1))
-     
-      for r in range(0, batch_size):
-        for c in range(0, seq_length):
-          ti[r][c] = get_encoder_value(data_inputs[r+i], c)
-          #ti[r][c] = data_inputs[r+i][c]
-
-      for r in range(0, batch_size):
-        to[r][0] = GO
-        for c in range(0, seq_length):
-          to[r][c+1] = get_decoder_value(data_outputs[r+i], c)
-          #to[r][c+1] = data_outputs[r+i][c]
-        
-
-      feed_dict = { train_inputs: ti, train_outputs: to, global_step: epoch }
+    for r in range(0, batch_size):
+      to[r][0] = GO
+      for c in range(0, seq_length):
+        to[r][c+1] = get_decoder_value(data_outputs[r+i], c)
+        #to[r][c+1] = data_outputs[r+i][c]
       
-      cost, o_probs, train, lr, o_encoder_inputs, o_decoder_inputs, o_logits, o_targets, o_loss = session.run([cost_op, probs, train_op, lr_op, encoder_inputs, decoder_inputs, logits, targets, loss], feed_dict)
 
-      print("Epoch {2}, Batch {0}, cost {1}, rate{3}".format(i/5, cost, epoch, lr))
-      dprint("o_logits:{0}".format(o_logits))
-      dprint("o_targets:{0}".format(o_targets))
-      dprint("o_probs:{0}".format(o_probs))
-      dprint("o_loss:{0}".format(o_loss))
-      dprint("o_encoder_inputs:{0}".format(o_encoder_inputs))
-      dprint("o_decoder_inputs:{0}".format(o_decoder_inputs))
+    feed_dict = { train_inputs: ti, train_outputs: to, global_step: epoch }
+    cost, o_probs, train, lr, o_encoder_inputs, o_decoder_inputs, o_logits, o_targets, o_loss = session.run([cost_op, probs, train_op, lr_op, encoder_inputs, decoder_inputs, logits, targets, loss], feed_dict)
 
-      '''
-      cost_after = session.run(cost_op, feed_dict)
-      if cost_after < cost:
-        dprint("COST OKAY")
-      else:
-        dprint("COST HIGHER")
-        stop = True
-        break
-      '''
+    print("Epoch {2}, Batch {0}, cost {1}, rate{3}".format(i/5, cost, epoch, lr))
+    dprint("o_logits:{0}".format(o_logits))
+    dprint("o_targets:{0}".format(o_targets))
+    dprint("o_probs:{0}".format(o_probs))
+    dprint("o_loss:{0}".format(o_loss))
+    dprint("o_encoder_inputs:{0}".format(o_encoder_inputs))
+    dprint("o_decoder_inputs:{0}".format(o_decoder_inputs))
 
-      i = i + batch_size
+    '''
+    cost_after = session.run(cost_op, feed_dict)
+    if cost_after < cost:
+      dprint("COST OKAY")
+    else:
+      dprint("COST HIGHER")
+      stop = True
+      break
+    '''
 
-    save_path = saver.save(session, save_dir)
+    i = i + batch_size
 
-    with open(pickle_file, 'wb') as output:
-      epoch = pickle.dump({ "epoch" : epoch }, output)
-    print("Saved to {0}".format(save_path))
+  save_path = saver.save(session, save_dir)
+
+  with open(pickle_file, 'wb') as output:
+    epoch = pickle.dump({ "epoch" : epoch }, output)
+  print("Saved to {0}".format(save_path))
 
   #print(id_to_word)
   print("Done training")  
