@@ -210,7 +210,6 @@ if os.path.exists(pickle_file):
     start = props[ "epoch" ] + 1
   saver.restore(session, save_dir)
 
-
 for epoch in range(0, epochs):
   if stop:
     break
@@ -236,10 +235,10 @@ for epoch in range(0, epochs):
         #to[r][c+1] = data_outputs[r+i][c]
       
 
-    feed_dict = { train_inputs: ti, train_outputs: to, global_step: epoch }
+    feed_dict = { train_inputs: ti, train_outputs: to, global_step: epoch+start }
     cost, o_probs, train, lr, o_encoder_inputs, o_decoder_inputs, o_logits, o_targets, o_loss = session.run([cost_op, probs, train_op, lr_op, encoder_inputs, decoder_inputs, logits, targets, loss], feed_dict)
 
-    print("Epoch {2}, Batch {0}, cost {1}, rate{3}".format(i/5, cost, epoch, lr))
+    print("Epoch {2}, Batch {0}, cost {1}, rate{3}".format(i/5, cost, epoch+start, lr))
     dprint("o_logits:{0}".format(o_logits))
     dprint("o_targets:{0}".format(o_targets))
     dprint("o_probs:{0}".format(o_probs))
@@ -262,7 +261,7 @@ for epoch in range(0, epochs):
   save_path = saver.save(session, save_dir)
 
   with open(pickle_file, 'wb') as output:
-    epoch = pickle.dump({ "epoch" : epoch }, output)
+    epoch = pickle.dump({ "epoch" : epoch+start }, output)
   print("Saved to {0}".format(save_path))
 
   #print(id_to_word)
