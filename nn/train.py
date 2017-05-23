@@ -17,6 +17,7 @@ parser = argparse.ArgumentParser(description="Train and sample dialogs")
 parser.add_argument('--sample', action='store_true', default=False, help='Sample the current saved model')
 parser.add_argument('--epochs', type=int, default=0, help='Run the training with specified number of epochs. The default is zero')
 parser.add_argument('--save_words', action='store_true', default=False, help='Save the words file')
+parser.add_argument('--freeze', action='store_true', default=False, help='Freeze the current graph')
 args = parser.parse_args()
 
 debug = False
@@ -39,11 +40,11 @@ def basic_rnn_seq2seq(encoder_inputs,
       lf = feed_previous_loop
     return seq2seq_lib.rnn_decoder(decoder_inputs, enc_state, cell, loop_function=lf)
 
-#INPUT_FILE_NAME = 'input.txt'
-#OUTPUT_FILE_NAME = 'output.txt'
+INPUT_FILE_NAME = 'input.txt'
+OUTPUT_FILE_NAME = 'output.txt'
 
-INPUT_FILE_NAME = 'test.enc'
-OUTPUT_FILE_NAME = 'test.dec'
+#INPUT_FILE_NAME = 'test.enc'
+#OUTPUT_FILE_NAME = 'test.dec'
 
 # remove non-alpha from input to help with density
 def clean_line(line):
@@ -177,6 +178,7 @@ sample_outputs, sample_states = seq2seq_lib.embedding_rnn_seq2seq(encoder_inputs
 sample_outputs = [char[0] for char in sample_outputs]
 sample_outputs = [tf.nn.softmax(char) for char in sample_outputs]
 sample_outputs = [tf.argmax(char, 0) for char in sample_outputs]
+sample_outputs = tf.identity(sample_outputs, name="sample_outputs")
 
 session = tf.Session()
 session.run(tf.global_variables_initializer())
@@ -184,6 +186,9 @@ session.run(tf.global_variables_initializer())
 #training is wrong
 #reverse ordering
 epochs = args.epochs
+if epochs == 0 and args.freeze:
+  epochs = 1
+
 stop = False
 
 def get_decoder_value(value, pos):
@@ -199,7 +204,9 @@ def get_encoder_value(value, pos):
   return PAD
 
 saver = tf.train.Saver()
-save_dir = "./saves/train.ckpt"
+MODEL_NAME = 'tfdroid'
+checkpoint_path = "./saves/{0}.ckpt".format(MODEL_NAME)
+input_graph_path = "./saves/{0}.pbtxt".format(MODEL_NAME)
 words_file = "./saves/words.txt"
 pickle_file = "./saves/pickle_file"
 
@@ -208,9 +215,12 @@ if os.path.exists(pickle_file):
   with open(pickle_file, 'rb') as input:
     props = pickle.load(input)
     start = props[ "epoch" ] + 1
-  saver.restore(session, save_dir)
+  saver.restore(session, checkpoint_path)
 
 for epoch in range(0, epochs):
+
+  tf.train.write_graph(session.graph_def, '.', input_graph_path)
+
   if stop:
     break
 
@@ -258,7 +268,7 @@ for epoch in range(0, epochs):
 
     i = i + batch_size
 
-  save_path = saver.save(session, save_dir)
+  save_path = saver.save(session, checkpoint_path)
 
   with open(pickle_file, 'wb') as output:
     epoch = pickle.dump({ "epoch" : epoch+start }, output)
@@ -271,7 +281,47 @@ if args.save_words:
   with open(words_file, 'wb') as output:
     for word in id_to_word:
       output.write("{0}\n".format(word))
-  
+ 
+if args.freeze:
+  from tensorflow.python.tools import freeze_graph
+  from tensorflow.python.tools import optimize_for_inference_lib
+
+  # Freeze the graph
+
+  input_saver_def_path = ""
+  input_binary = False
+  output_node_names = "sample_outputs"
+  restore_op_name = "save/restore_all"
+  filename_tensor_name = "save/Const:0"
+  output_frozen_graph_name = 'saves/frozen_'+MODEL_NAME+'.pb'
+  output_optimized_graph_name = 'saves/optimized_'+MODEL_NAME+'.pb'
+  clear_devices = True
+
+  freeze_graph.freeze_graph(input_graph_path, input_saver_def_path,
+                            input_binary, checkpoint_path, output_node_names,
+                            restore_op_name, filename_tensor_name,
+                            output_frozen_graph_name, clear_devices, "")
+
+  # Optimize for inference
+
+  input_graph_def = tf.GraphDef()
+  with tf.gfile.Open(output_frozen_graph_name, "r") as f:
+      data = f.read()
+      input_graph_def.ParseFromString(data)
+
+  output_graph_def = optimize_for_inference_lib.optimize_for_inference(
+          input_graph_def,
+          ["train_inputs", "train_outputs"], # an array of the input node(s)
+          ["sample_outputs"], # an array of output nodes
+          tf.float32.as_datatype_enum)
+
+  # Save the optimized graph
+
+  f = tf.gfile.FastGFile(output_optimized_graph_name, "w")
+  f.write(output_graph_def.SerializeToString())
+
+  # tf.train.write_graph(output_graph_def, './', output_optimized_graph_name)  
+ 
 if args.sample:
   print("Testing")
   while(True):
