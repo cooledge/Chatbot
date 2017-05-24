@@ -148,7 +148,7 @@ probs = [tf.argmax(char, 0) for char in probs]
 
 "abc<eos>"
 # targets [2]*2
-targets = [decoder_inputs[i + 1] for i in xrange(len(decoder_inputs) - 1)]
+targets = [decoder_inputs[i + 1] for i in range(len(decoder_inputs) - 1)]
 # targets [2]*3
 targets.append( tf.constant([EOS]*batch_size, dtype=tf.int32) )
 
@@ -325,7 +325,10 @@ if args.freeze:
 if args.sample:
   print("Testing")
   while(True):
-    line = raw_input("Enter test value")
+    if sys.version_info.major == 2:
+      line = raw_input("Enter test value")
+    else:
+      line = input("Enter test value")
 
     words = line.lower().split()
     if len(words) == 0:
