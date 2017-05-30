@@ -207,7 +207,7 @@ saver = tf.train.Saver()
 MODEL_NAME = 'tfdroid'
 checkpoint_path = "./saves/{0}.ckpt".format(MODEL_NAME)
 input_graph_path = "./saves/{0}.pbtxt".format(MODEL_NAME)
-words_file = "./saves/words.txt"
+words_file = "../app/src/main/assets/words.txt"
 pickle_file = "./saves/pickle_file"
 
 start = 0
@@ -294,7 +294,7 @@ if args.freeze:
   restore_op_name = "save/restore_all"
   filename_tensor_name = "save/Const:0"
   output_frozen_graph_name = 'saves/frozen_'+MODEL_NAME+'.pb'
-  output_optimized_graph_name = 'saves/optimized_'+MODEL_NAME+'.pb'
+  output_optimized_graph_name = '../app/src/main/assets/optimized_'+MODEL_NAME+'.pb'
   clear_devices = True
 
   freeze_graph.freeze_graph(input_graph_path, input_saver_def_path,
