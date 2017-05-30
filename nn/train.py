@@ -313,7 +313,8 @@ if args.freeze:
           input_graph_def,
           ["train_inputs", "train_outputs"], # an array of the input node(s)
           ["sample_outputs"], # an array of output nodes
-          tf.float32.as_datatype_enum)
+          tf.int32.as_datatype_enum)
+          #tf.float32.as_datatype_enum)
 
   # Save the optimized graph
 
