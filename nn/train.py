@@ -183,6 +183,16 @@ sample_outputs = tf.identity(sample_outputs, name="sample_outputs")
 session = tf.Session()
 session.run(tf.global_variables_initializer())
 
+'''
+pdb.set_trace()
+for n in session.graph_def.node:
+  if n.name == 'embedding_rnn_seq2seq/rnn/embedding_wrapper/embedding/read':
+    print "Found it"
+    print n
+
+pdb.set_trace()
+'''
+
 #training is wrong
 #reverse ordering
 epochs = args.epochs
@@ -301,6 +311,7 @@ if args.freeze:
                             input_binary, checkpoint_path, output_node_names,
                             restore_op_name, filename_tensor_name,
                             output_frozen_graph_name, clear_devices, "")
+  
 
   # Optimize for inference
 
@@ -309,12 +320,36 @@ if args.freeze:
       data = f.read()
       input_graph_def.ParseFromString(data)
 
+  '''
+  pdb.set_trace()
+  for n in input_graph_def.node:
+    if n.name == 'embedding_rnn_seq2seq/rnn/embedding_wrapper/embedding/read':
+      print "Found it"
+      print n
+
+  pdb.set_trace()
+  '''
+
   output_graph_def = optimize_for_inference_lib.optimize_for_inference(
           input_graph_def,
           ["train_inputs", "train_outputs"], # an array of the input node(s)
           ["sample_outputs"], # an array of output nodes
           tf.int32.as_datatype_enum)
           #tf.float32.as_datatype_enum)
+
+  # the optimizer is removing 'embedding_rnn_seq2seq/rnn/embedding_wrapper/embedding/read'
+  # which is causing the java code to not be able to load the graph
+  output_graph_def = input_graph_def
+
+  '''
+  pdb.set_trace()
+  for n in output_graph_def.node:
+    if n.name == 'embedding_rnn_seq2seq/rnn/embedding_wrapper/embedding/read':
+      print "Found it"
+      print n
+
+  pdb.set_trace()
+  '''
 
   # Save the optimized graph
 
