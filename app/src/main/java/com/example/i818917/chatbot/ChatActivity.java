@@ -32,8 +32,43 @@ public class ChatActivity extends AppCompatActivity {
     super.onCreate(savedInstanceState);
     setContentView(R.layout.activity_chat);
 
-    inferenceInterface = new TensorFlowInferenceInterface();
-    inferenceInterface.initializeTensorFlow(getAssets(), MODEL_FILE);
+    //inferenceInterface = new TensorFlowInferenceInterface();
+    //inferenceInterface.initializeTensorFlow(getAssets(), MODEL_FILE);
+    inferenceInterface = new TensorFlowInferenceInterface(getAssets(), MODEL_FILE);
+    // (10, 20)
+    String train_inputs = "train_inputs";
+    long[] train_inputs_size = {10,20};
+    // (10, 10)
+    String sample_outputs = "sample_outputs";
+
+    int[] train_inputs_values = {
+            0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,
+            0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,
+            0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,
+            0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,
+            0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,
+            0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,
+            0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,
+            0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,
+            0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,
+            0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,
+    };
+
+    inferenceInterface.feed(train_inputs, train_inputs_values, train_inputs_size);
+    inferenceInterface.run( new String[] {sample_outputs});
+    int[] sample_outputs_values = {
+      0,1,2,3,4,5,6,7,8,9,
+      0,1,2,3,4,5,6,7,8,9,
+      0,1,2,3,4,5,6,7,8,9,
+      0,1,2,3,4,5,6,7,8,9,
+      0,1,2,3,4,5,6,7,8,9,
+      0,1,2,3,4,5,6,7,8,9,
+      0,1,2,3,4,5,6,7,8,9,
+      0,1,2,3,4,5,6,7,8,9,
+      0,1,2,3,4,5,6,7,8,9,
+      0,1,2,3,4,5,6,7,8,9,
+    };
+    inferenceInterface.fetch(sample_outputs, sample_outputs_values);
 
     mTTS = new TextToSpeech(getApplicationContext(), new TextToSpeech.OnInitListener() {
       @Override
