@@ -122,7 +122,7 @@ batch_size = 10
 seq_length = 10
 embedding_size = 128
 cell_size = 96
-num_layers = 3
+num_layers = 1
 size = 1024 
 dtype = tf.float32
 
@@ -139,8 +139,9 @@ decoder_inputs = [ tf.squeeze(i) for i in tf.split(tf.cast(train_outputs, tf.int
 single_cell = tf.contrib.rnn.BasicLSTMCell(cell_size)
 cell = tf.contrib.rnn.MultiRNNCell([single_cell for _ in range(num_layers)])
 
+scope = ""
 # outputs [(2,6)]*3
-outputs, states = seq2seq_lib.embedding_rnn_seq2seq(encoder_inputs, decoder_inputs, cell, vocabulary_size, vocabulary_size, 128)
+outputs, states = seq2seq_lib.embedding_rnn_seq2seq(encoder_inputs, decoder_inputs, cell, vocabulary_size, vocabulary_size, 128, scope=scope)
 logits = outputs
 probs = [char[0] for char in outputs]
 probs = [tf.nn.softmax(char) for char in probs]
@@ -174,7 +175,9 @@ else:
 
 tf.get_variable_scope().reuse_variables()
 
-sample_outputs, sample_states = seq2seq_lib.embedding_rnn_seq2seq(encoder_inputs, decoder_inputs, cell, vocabulary_size, vocabulary_size, 128, feed_previous=True)
+sample_single_cell = tf.contrib.rnn.BasicLSTMCell(cell_size)
+sample_cell = tf.contrib.rnn.MultiRNNCell([sample_single_cell for _ in range(num_layers)])
+sample_outputs, sample_states = seq2seq_lib.embedding_rnn_seq2seq(encoder_inputs, decoder_inputs, sample_cell, vocabulary_size, vocabulary_size, 128, feed_previous=True, scope=scope)
 sample_outputs = [char[0] for char in sample_outputs]
 sample_outputs = [tf.nn.softmax(char) for char in sample_outputs]
 sample_outputs = [tf.argmax(char, 0) for char in sample_outputs]
@@ -226,6 +229,11 @@ if os.path.exists(pickle_file):
     props = pickle.load(input)
     start = props[ "epoch" ] + 1
   saver.restore(session, checkpoint_path)
+
+  # make sure the sample and train cell uses the same variables
+  for i in range(len(cell.variables)):
+    if cell.variables[i] != sample_cell.variables[i]:
+      sys.exit("Not reusing the variables for the sample and training model")
 
 for epoch in range(0, epochs):
 
