@@ -364,7 +364,7 @@ if args.freeze:
   f = tf.gfile.FastGFile(output_optimized_graph_name, "w")
   f.write(output_graph_def.SerializeToString())
 
-  # tf.train.write_graph(output_graph_def, './', output_optimized_graph_name)  
+  tf.train.write_graph(output_graph_def, './', output_optimized_graph_name)  
  
 if args.sample:
   print("Testing")
