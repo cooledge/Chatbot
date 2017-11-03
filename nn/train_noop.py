@@ -62,10 +62,9 @@ if args.freeze:
   restore_op_name = "save/restore_all"
   filename_tensor_name = "save/Const:0"
   output_frozen_graph_name = 'saves/frozen_'+MODEL_NAME+'.pb'
-  output_optimized_graph_name = '../app/src/main/assets/optimized_'+MODEL_NAME+'.pb'
+  output_optimized_graph_name = '../app/src/main/assets/noop_optimized_'+MODEL_NAME+'.pb'
   clear_devices = True
 
-  pdb.set_trace()
   freeze_graph.freeze_graph(input_graph_path, input_saver_def_path,
                             input_binary, checkpoint_path, output_node_names,
                             restore_op_name, filename_tensor_name,
