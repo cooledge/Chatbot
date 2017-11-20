@@ -23,6 +23,8 @@ public class ChatActivity extends AppCompatActivity {
   }
 
   private static final int SPEECH_REQUEST_CODE = 0;
+  String MODEL_FILE1 = "noop_optimized_tfdroid.pb";
+  String MODEL_FILE2 = "conv_actions_frozen.pb";
   String MODEL_FILE = "optimized_tfdroid.pb";
   TextToSpeech mTTS;
   ToggleButton mTB;
@@ -34,6 +36,8 @@ public class ChatActivity extends AppCompatActivity {
 
     //inferenceInterface = new TensorFlowInferenceInterface();
     //inferenceInterface.initializeTensorFlow(getAssets(), MODEL_FILE);
+    inferenceInterface = new TensorFlowInferenceInterface(getAssets(), MODEL_FILE1);
+    inferenceInterface = new TensorFlowInferenceInterface(getAssets(), MODEL_FILE2);
     inferenceInterface = new TensorFlowInferenceInterface(getAssets(), MODEL_FILE);
     // (10, 20)
     String train_inputs = "train_inputs";
