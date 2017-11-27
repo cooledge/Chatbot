@@ -12,6 +12,7 @@ import argparse
 import re
 from tensorflow.contrib.legacy_seq2seq.python.ops import seq2seq as seq2seq_lib
 from tensorflow.contrib.legacy_seq2seq import model_with_buckets
+from tensorflow.python.framework import graph_util
 
 parser = argparse.ArgumentParser(description="Train and sample dialogs")
 parser.add_argument('--sample', action='store_true', default=False, help='Sample the current saved model')
@@ -299,8 +300,20 @@ if args.save_words:
   with open(words_file, 'wb') as output:
     for word in id_to_word:
       output.write("{0}\n".format(word))
- 
+
 if args.freeze:
+  def freeze_it():
+    output_file = '../app/src/main/assets/optimized_'+MODEL_NAME+'.pb'
+    frozen_graph_def = graph_util.convert_variables_to_constants(session, session.graph_def, ['train_inputs', 'sample_outputs'])
+    tf.train.write_graph(
+      frozen_graph_def,
+      os.path.dirname(output_file),
+      os.path.basename(output_file),
+      as_text=False)
+
+  freeze_it()
+ 
+if args.freeze and False:
   from tensorflow.python.tools import freeze_graph
   from tensorflow.python.tools import optimize_for_inference_lib
 
