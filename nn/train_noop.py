@@ -10,9 +10,7 @@ from collections import Counter
 import pdb
 import argparse
 import re
-from tensorflow.contrib.legacy_seq2seq.python.ops import seq2seq as seq2seq_lib
-from tensorflow.contrib.legacy_seq2seq import model_with_buckets
-from tensorflow.contrib.legacy_seq2seq import embedding_rnn_seq2seq
+from tensorflow.python.framework import graph_util
 
 parser = argparse.ArgumentParser(description="Train and sample dialogs")
 parser.add_argument('--sample', action='store_true', default=False, help='Sample the current saved model')
@@ -26,7 +24,7 @@ def dprint(v):
   if debug:
     print(v)
 
-batch_size = 10
+batch_size = 1
 seq_length = 20
 train_inputs = tf.placeholder(tf.int32, shape=[batch_size, seq_length], name="train_inputs")
 train_outputs = tf.placeholder(tf.int32, shape=[batch_size, seq_length+1], name="train_outputs")
@@ -51,48 +49,14 @@ if args.save_words:
     output.write("banana\n")
  
 if args.freeze:
-  from tensorflow.python.tools import freeze_graph
-  from tensorflow.python.tools import optimize_for_inference_lib
 
-  # Freeze the graph
+  def freeze_it():
+    output_file = '../app/src/main/assets/noop_optimized_'+MODEL_NAME+'.pb'
+    frozen_graph_def = graph_util.convert_variables_to_constants(session, session.graph_def, ['train_inputs', 'sample_outputs'])
+    tf.train.write_graph(
+      frozen_graph_def,
+      os.path.dirname(output_file),
+      os.path.basename(output_file),
+      as_text=False)
 
-  input_saver_def_path = ""
-  input_binary = False
-  output_node_names = "sample_outputs"
-  restore_op_name = "save/restore_all"
-  filename_tensor_name = "save/Const:0"
-  output_frozen_graph_name = 'saves/frozen_'+MODEL_NAME+'.pb'
-  output_optimized_graph_name = '../app/src/main/assets/noop_optimized_'+MODEL_NAME+'.pb'
-  clear_devices = True
-
-  freeze_graph.freeze_graph(input_graph_path, input_saver_def_path,
-                            input_binary, checkpoint_path, output_node_names,
-                            restore_op_name, filename_tensor_name,
-                            output_frozen_graph_name, clear_devices, "")
-  
-
-  # Optimize for inference
-
-  input_graph_def = tf.GraphDef()
-  with tf.gfile.Open(output_frozen_graph_name, "r") as f:
-      data = f.read()
-      input_graph_def.ParseFromString(data)
-
-  output_graph_def = optimize_for_inference_lib.optimize_for_inference(
-          input_graph_def,
-          #["train_inputs", "train_outputs"], # an array of the input node(s)
-          ["train_inputs"], # an array of the input node(s)
-          ["sample_outputs"], # an array of output nodes
-          tf.int32.as_datatype_enum)
-          #tf.float32.as_datatype_enum)
-
-  # the optimizer is removing 'embedding_rnn_seq2seq/rnn/embedding_wrapper/embedding/read'
-  # which is causing the java code to not be able to load the graph
-  output_graph_def = input_graph_def
-
-  # Save the optimized graph
-
-  f = tf.gfile.FastGFile(output_optimized_graph_name, "w")
-  f.write(output_graph_def.SerializeToString())
-
-  # tf.train.write_graph(output_graph_def, './', output_optimized_graph_name)  
+  freeze_it()
